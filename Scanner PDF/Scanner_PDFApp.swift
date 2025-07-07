@@ -9,9 +9,12 @@ import SwiftUI
 
 @main
 struct Scanner_PDFApp: App {
+    let modelContainer = PDFStorageManager.createModelContainer()
+    
     var body: some Scene {
         WindowGroup {
             ContentView()
         }
+        .modelContainer(modelContainer)
     }
 }
