@@ -16,6 +16,21 @@
 			path = "Scanner PDF";
 			sourceTree = "<group>";
 		};
+		CE812A162E1BB6D400DFFFEA /* Models */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = Models;
+			sourceTree = "<group>";
+		};
+		CE812A182E1BB6E200DFFFEA /* Services */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = Services;
+			sourceTree = "<group>";
+		};
+		CE812A192E1BB6EB00DFFFEA /* UI */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = UI;
+			sourceTree = "<group>";
+		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -32,6 +47,9 @@
 		097F2F762E18478400078C43 = {
 			isa = PBXGroup;
 			children = (
+				CE812A192E1BB6EB00DFFFEA /* UI */,
+				CE812A182E1BB6E200DFFFEA /* Services */,
+				CE812A162E1BB6D400DFFFEA /* Models */,
 				097F2F812E18478400078C43 /* Scanner PDF */,
 				097F2F802E18478400078C43 /* Products */,
 			);
@@ -62,6 +80,9 @@
 			);
 			fileSystemSynchronizedGroups = (
 				097F2F812E18478400078C43 /* Scanner PDF */,
+				CE812A162E1BB6D400DFFFEA /* Models */,
+				CE812A182E1BB6E200DFFFEA /* Services */,
+				CE812A192E1BB6EB00DFFFEA /* UI */,
 			);
 			name = "Scanner PDF";
 			packageProductDependencies = (
@@ -253,6 +274,9 @@
 				CURRENT_PROJECT_VERSION = 1;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_NSCameraUsageDescription = "This app needs camera access to scan documents and convert them to PDF format. Your photos are processed locally and never shared.";
+				INFOPLIST_KEY_NSDocumentsFolderUsageDescription = "This app needs access to your documents folder to import PDF files and save scanned documents.";
+				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "This app needs access to your photo library to import images and convert them to PDF documents. Your photos remain private and are processed locally on your device.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -280,6 +304,9 @@
 				CURRENT_PROJECT_VERSION = 1;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_NSCameraUsageDescription = "This app needs camera access to scan documents and convert them to PDF format. Your photos are processed locally and never shared.";
+				INFOPLIST_KEY_NSDocumentsFolderUsageDescription = "This app needs access to your documents folder to import PDF files and save scanned documents.";
+				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "This app needs access to your photo library to import images and convert them to PDF documents. Your photos remain private and are processed locally on your device.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;

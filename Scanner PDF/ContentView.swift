@@ -2,258 +2,35 @@ import SwiftUI
 import SwiftData
 import Foundation
 import PDFKit
+import PhotosUI
+import VisionKit
+import UniformTypeIdentifiers
 
-// MARK: - Scanned Document Model
-@Model
-final class ScannedDocument {
-    @Attribute(.unique) var id: UUID
-    var name: String
-    var createdDate: Date
-    var modifiedDate: Date
-    var fileSize: Int64
-    var pageCount: Int
-    var tags: [String]
-    var isFavorite: Bool
-    
-    // Store the PDF file path relative to documents directory
-    var filePath: String
-    
-    // Thumbnail image data (optional)
-    @Attribute(.externalStorage) var thumbnailData: Data?
-    
-    init(name: String, filePath: String, pageCount: Int = 0, fileSize: Int64 = 0) {
-        self.id = UUID()
-        self.name = name
-        self.filePath = filePath
-        self.pageCount = pageCount
-        self.fileSize = fileSize
-        self.createdDate = Date()
-        self.modifiedDate = Date()
-        self.tags = []
-        self.isFavorite = false
-        self.thumbnailData = nil
-    }
-    
-    // Computed property to get full file URL
-    var fileURL: URL? {
-        let documentsPath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
-        return documentsPath.appendingPathComponent(filePath)
-    }
-    
-    // Generate thumbnail from PDF
-    func generateThumbnail() -> UIImage? {
-        guard let fileURL = fileURL,
-              let pdfDocument = PDFDocument(url: fileURL),
-              let firstPage = pdfDocument.page(at: 0) else {
-            return nil
-        }
-        
-        let pageRect = firstPage.bounds(for: .mediaBox)
-        let renderer = UIGraphicsImageRenderer(size: pageRect.size)
-        
-        let thumbnail = renderer.image { ctx in
-            UIColor.white.set()
-            ctx.fill(pageRect)
-            
-            ctx.cgContext.translateBy(x: 0, y: pageRect.size.height)
-            ctx.cgContext.scaleBy(x: 1.0, y: -1.0)
-            
-            firstPage.draw(with: .mediaBox, to: ctx.cgContext)
-        }
-        
-        return thumbnail
-    }
-    
-    // Update thumbnail data
-    func updateThumbnail() {
-        if let thumbnail = generateThumbnail() {
-            self.thumbnailData = thumbnail.jpegData(compressionQuality: 0.8)
-        }
-    }
+
+// MARK: - Import Option Enum
+enum ImportOption {
+    case camera
+    case photoLibrary
+    case files
 }
 
-// MARK: - Storage Manager
-@Observable
-final class PDFStorageManager {
-    private var modelContext: ModelContext
-    private let fileManager = FileManager.default
-    
-    // Published properties for UI binding
-    var documents: [ScannedDocument] = []
-    var isLoading = false
-    var errorMessage: String?
-    
-    init(modelContext: ModelContext) {
-        self.modelContext = modelContext
-        createDirectoryIfNeeded()
-        fetchDocuments()
-    }
-    
-    // MARK: - Directory Management
-    private func createDirectoryIfNeeded() {
-        let documentsPath = getDocumentsDirectory()
-        let pdfDirectory = documentsPath.appendingPathComponent("PDFs")
-        
-        if !fileManager.fileExists(atPath: pdfDirectory.path) {
-            try? fileManager.createDirectory(at: pdfDirectory, withIntermediateDirectories: true)
-        }
-    }
-    
-    private func getDocumentsDirectory() -> URL {
-        return fileManager.urls(for: .documentDirectory, in: .userDomainMask).first!
-    }
-    
-    private func getPDFDirectory() -> URL {
-        return getDocumentsDirectory().appendingPathComponent("PDFs")
-    }
-    
-    // MARK: - CRUD Operations
-    
-    func fetchDocuments() {
-        isLoading = true
-        errorMessage = nil
-        
-        do {
-            let descriptor = FetchDescriptor<ScannedDocument>(
-                sortBy: [SortDescriptor(\.modifiedDate, order: .reverse)]
-            )
-            documents = try modelContext.fetch(descriptor)
-        } catch {
-            errorMessage = "Failed to fetch documents: \(error.localizedDescription)"
-        }
-        
-        isLoading = false
-    }
-    
-    func savePDF(from data: Data, name: String) throws -> ScannedDocument {
-        let fileName = "\(UUID().uuidString).pdf"
-        let filePath = "PDFs/\(fileName)"
-        let fileURL = getDocumentsDirectory().appendingPathComponent(filePath)
-        
-        // Write PDF data to file
-        try data.write(to: fileURL)
-        
-        // Get file size
-        let fileSize = try fileManager.attributesOfItem(atPath: fileURL.path)[.size] as? Int64 ?? 0
-        
-        // Get page count
-        let pageCount = getPDFPageCount(from: fileURL)
-        
-        // Create document model
-        let document = ScannedDocument(
-            name: name,
-            filePath: filePath,
-            pageCount: pageCount,
-            fileSize: fileSize
-        )
-        
-        // Generate thumbnail
-        document.updateThumbnail()
-        
-        // Save to SwiftData
-        modelContext.insert(document)
-        try modelContext.save()
-        
-        // Update local array
-        documents.insert(document, at: 0)
-        
-        return document
-    }
-    
-    func updateDocument(_ document: ScannedDocument) throws {
-        document.modifiedDate = Date()
-        try modelContext.save()
-        fetchDocuments()
-    }
-    
-    func deleteDocument(_ document: ScannedDocument) throws {
-        // Delete physical file
-        if let fileURL = document.fileURL {
-            try? fileManager.removeItem(at: fileURL)
-        }
-        
-        // Delete from SwiftData
-        modelContext.delete(document)
-        try modelContext.save()
-        
-        // Update local array
-        documents.removeAll { $0.id == document.id }
-    }
-    
-    func deleteDocuments(_ documentsToDelete: [ScannedDocument]) throws {
-        for document in documentsToDelete {
-            try deleteDocument(document)
-        }
-    }
-    
-    // MARK: - Search and Filter
-    func searchDocuments(query: String) -> [ScannedDocument] {
-        if query.isEmpty {
-            return documents
-        }
-        
-        return documents.filter { document in
-            document.name.localizedCaseInsensitiveContains(query) ||
-            document.tags.contains { $0.localizedCaseInsensitiveContains(query) }
-        }
-    }
-    
-    func filterDocuments(by tag: String) -> [ScannedDocument] {
-        return documents.filter { $0.tags.contains(tag) }
-    }
-    
-    func getFavoriteDocuments() -> [ScannedDocument] {
-        return documents.filter { $0.isFavorite }
-    }
-    
-    // MARK: - Utility Methods
-    private func getPDFPageCount(from url: URL) -> Int {
-        guard let pdfDocument = PDFDocument(url: url) else { return 0 }
-        return pdfDocument.pageCount
-    }
-    
-    func getTotalStorageUsed() -> Int64 {
-        return documents.reduce(0) { $0 + $1.fileSize }
-    }
-    
-    func getFormattedFileSize(_ bytes: Int64) -> String {
-        let formatter = ByteCountFormatter()
-        formatter.allowedUnits = [.useKB, .useMB, .useGB]
-        formatter.countStyle = .file
-        return formatter.string(fromByteCount: bytes)
-    }
-}
-
-// MARK: - SwiftData Configuration
-extension PDFStorageManager {
-    static func createModelContainer() -> ModelContainer {
-        let schema = Schema([
-            ScannedDocument.self
-        ])
-        
-        let modelConfiguration = ModelConfiguration(
-            schema: schema,
-            isStoredInMemoryOnly: false,
-            cloudKitDatabase: .none // Change to .automatic for CloudKit sync
-        )
-        
-        do {
-            return try ModelContainer(for: schema, configurations: [modelConfiguration])
-        } catch {
-            fatalError("Could not create ModelContainer: \(error)")
-        }
-    }
-}
-
-
-// MARK: - Example View Implementation
+// MARK: - Main Content View
 struct ContentView: View {
     @Environment(\.modelContext) private var modelContext
     @State private var storageManager: PDFStorageManager?
     @State private var searchText = ""
     @State private var selectedTag = ""
     @State private var showingFavoritesOnly = false
-    
+    @State private var showingImportMenu = false
+    @State private var showingDocumentScanner = false
+    @State private var showingImagePicker = false
+    @State private var showingFilePicker = false
+    @State private var selectedImages: [UIImage] = []
+    @State private var isProcessing = false
+    @State private var fabExpanded = false
+    @State private var showingQuickActions = false
+    @State private var showingSettings = false
+
     var filteredDocuments: [ScannedDocument] {
         guard let manager = storageManager else { return [] }
         
@@ -278,173 +55,473 @@ struct ContentView: View {
     }
     
     var body: some View {
-        NavigationView {
-            VStack {
-                // Search and Filter Controls
-                HStack {
-                    TextField("Search documents...", text: $searchText)
-                        .textFieldStyle(RoundedBorderTextFieldStyle())
-                    
-                    Button(action: { showingFavoritesOnly.toggle() }) {
-                        Image(systemName: showingFavoritesOnly ? "heart.fill" : "heart")
-                            .foregroundColor(showingFavoritesOnly ? .red : .gray)
-                    }
-                }
-                .padding()
+        NavigationStack {
+            ZStack {
+                // Background
+                Color(.systemGroupedBackground)
+                    .ignoresSafeArea()
                 
-                // Document List
-                List {
-                    ForEach(filteredDocuments) { document in
-                        DocumentRowView(document: document, storageManager: storageManager!)
-                    }
-                    .onDelete(perform: deleteDocuments)
+                VStack(spacing: 0) {
+                    // Header with search and filters
+                    headerView
+                    
+                    // Document Grid/List
+                    documentGridView
                 }
-                .refreshable {
-                    storageManager?.fetchDocuments()
-                }
+                
+                // Enhanced FAB positioned at bottom left
+                floatingActionButton
             }
-            .navigationTitle("PDF Documents")
+            .navigationTitle("My Documents")
+            .navigationBarTitleDisplayMode(.large)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Add PDF") {
-                        // Handle adding new PDF
-                        addSamplePDF()
+                    HStack(spacing: 16) {
+                        // Settings Button
+                        Button(action: { showingSettings = true }) {
+                            Image(systemName: "gear")
+                                .font(.title2)
+                                .foregroundColor(.primary)
+                        }
+                        
                     }
                 }
             }
         }
         .onAppear {
-            if storageManager == nil {
-                storageManager = PDFStorageManager(modelContext: modelContext)
+            setupStorageManager()
+        }
+        .sheet(isPresented: $showingDocumentScanner) {
+            if VNDocumentCameraViewController.isSupported {
+                DocumentScannerView { scannedImages in
+                    processScannedImages(scannedImages)
+                }
             }
         }
-    }
-    
-    private func deleteDocuments(offsets: IndexSet) {
-        guard let manager = storageManager else { return }
-        
-        let documentsToDelete = offsets.map { filteredDocuments[$0] }
-        
-        do {
-            try manager.deleteDocuments(documentsToDelete)
-        } catch {
-            print("Error deleting documents: \(error)")
+        .sheet(isPresented: $showingImagePicker) {
+            ImagePickerView(selectedImages: $selectedImages) { images in
+                processScannedImages(images)
+            }
+        }
+        .fileImporter(
+            isPresented: $showingFilePicker,
+            allowedContentTypes: [.pdf],
+            allowsMultipleSelection: true
+        ) { result in
+            handleFileImport(result: result)
+        }
+        .actionSheet(isPresented: $showingQuickActions) {
+            ActionSheet(
+                title: Text("Quick Actions"),
+                buttons: [
+                    .default(Text("Refresh Documents")) {
+                        Task { await refreshDocuments() }
+                    },
+                    .default(Text(showingFavoritesOnly ? "Show All" : "Show Favorites Only")) {
+                        withAnimation(.spring()) {
+                            showingFavoritesOnly.toggle()
+                        }
+                    },
+                    .default(Text("Clear Search")) {
+                        withAnimation(.easeInOut) {
+                            searchText = ""
+                        }
+                    },
+                    .cancel()
+                ]
+            )
+        }
+        .overlay {
+            if isProcessing {
+                ProcessingOverlay()
+            }
+        }
+        .sheet(isPresented: $showingSettings) {
+            SettingsView()
         }
     }
     
-    private func addSamplePDF() {
-        // This would typically be called after scanning/creating a PDF
-        // For demo purposes, we'll create a sample PDF
-        let sampleData = createSamplePDFData()
-        
-        do {
-            try storageManager?.savePDF(from: sampleData, name: "Sample Document \(Date().timeIntervalSince1970)")
-        } catch {
-            print("Error saving PDF: \(error)")
-        }
-    }
-    
-    private func createSamplePDFData() -> Data {
-        // Create a simple PDF for demonstration
-        let pdfMetaData = [
-            kCGPDFContextCreator: "PDF Scanner App",
-            kCGPDFContextAuthor: "Scanner App",
-            kCGPDFContextTitle: "Sample PDF"
-        ]
-        
-        let format = UIGraphicsPDFRendererFormat()
-        format.documentInfo = pdfMetaData as [String: Any]
-        
-        let pageWidth = 8.5 * 72.0
-        let pageHeight = 11 * 72.0
-        let pageRect = CGRect(x: 0, y: 0, width: pageWidth, height: pageHeight)
-        
-        let renderer = UIGraphicsPDFRenderer(bounds: pageRect, format: format)
-        
-        let data = renderer.pdfData { context in
-            context.beginPage()
+    // MARK: - Enhanced Header View
+    private var headerView: some View {
+        VStack(spacing: 16) {
+            // Search bar with improved design
+            HStack {
+                Image(systemName: "magnifyingglass")
+                    .foregroundColor(.secondary)
+                    .frame(width: 16, height: 16)
+                
+                TextField("Search documents...", text: $searchText)
+                    .textFieldStyle(PlainTextFieldStyle())
+                    .font(.subheadline)
+                
+                if !searchText.isEmpty {
+                    Button(action: {
+                        withAnimation(.spring(response: 0.3)) {
+                            searchText = ""
+                        }
+                    }) {
+                        Image(systemName: "xmark.circle.fill")
+                            .foregroundColor(.secondary)
+                            .font(.system(size: 16))
+                    }
+                    .transition(.scale.combined(with: .opacity))
+                }
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 12)
+            .background(
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(Color(.systemBackground))
+                    .shadow(color: .black.opacity(0.05), radius: 2, x: 0, y: 1)
+            )
+            .animation(.spring(response: 0.3), value: searchText.isEmpty)
             
-            let text = "Sample PDF Document\nCreated by Scanner App"
-            let textFont = UIFont.systemFont(ofSize: 24)
-            let textAttributes: [NSAttributedString.Key: Any] = [
-                .font: textFont,
-                .foregroundColor: UIColor.black
-            ]
-            
-            text.draw(in: CGRect(x: 50, y: 50, width: pageWidth - 100, height: pageHeight - 100), withAttributes: textAttributes)
-        }
-        
-        return data
-    }
-}
-
-// MARK: - Document Row View
-struct DocumentRowView: View {
-    let document: ScannedDocument
-    let storageManager: PDFStorageManager
-    
-    var body: some View {
-        HStack {
-            // Thumbnail
-            if let thumbnailData = document.thumbnailData,
-               let thumbnail = UIImage(data: thumbnailData) {
-                Image(uiImage: thumbnail)
-                    .resizable()
-                    .aspectRatio(contentMode: .fit)
-                    .frame(width: 50, height: 70)
-                    .cornerRadius(8)
-            } else {
-                RoundedRectangle(cornerRadius: 8)
-                    .fill(Color.gray.opacity(0.3))
-                    .frame(width: 50, height: 70)
-                    .overlay(
-                        Image(systemName: "doc.fill")
-                            .foregroundColor(.gray)
+            // Enhanced filter controls
+            HStack {
+                // Favorites filter
+                Button(action: {
+                    withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                        showingFavoritesOnly.toggle()
+                    }
+                }) {
+                    HStack(spacing: 6) {
+                        Image(systemName: showingFavoritesOnly ? "heart.fill" : "heart")
+                            .font(.system(size: 14, weight: .medium))
+                        Text("Favorites")
+                            .font(.subheadline)
+                            .fontWeight(.medium)
+                    }
+                    .foregroundColor(showingFavoritesOnly ? .white : .primary)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 8)
+                    .background(
+                        RoundedRectangle(cornerRadius: 20)
+                            .fill(showingFavoritesOnly ?
+                                  LinearGradient(colors: [.red, .pink], startPoint: .leading, endPoint: .trailing) :
+                                  LinearGradient(colors: [Color(.systemGray6)], startPoint: .leading, endPoint: .trailing)
+                            )
                     )
+                    .scaleEffect(showingFavoritesOnly ? 1.05 : 1.0)
+                }
+                
+                Spacer()
+                
+                // Storage info with improved design
+                if let manager = storageManager {
+                    HStack(spacing: 4) {
+                        Image(systemName: "externaldrive")
+                            .font(.system(size: 12))
+                            .foregroundColor(.secondary)
+                        Text(manager.getFormattedFileSize(manager.getTotalStorageUsed()))
+                            .font(.caption)
+                            .fontWeight(.medium)
+                            .foregroundColor(.secondary)
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 6)
+                    .background(
+                        RoundedRectangle(cornerRadius: 16)
+                            .fill(Color(.systemGray6))
+                    )
+                }
+            }
+        }
+        .padding(.horizontal, 20)
+        .padding(.vertical, 16)
+        .background(Color(.systemGroupedBackground))
+    }
+    
+    // MARK: - Enhanced Document Grid View
+    private var documentGridView: some View {
+        ScrollView {
+            LazyVGrid(columns: [
+                GridItem(.adaptive(minimum: 160), spacing: 16)
+            ], spacing: 20) {
+                ForEach(filteredDocuments) { document in
+                    DocumentCardView(document: document, storageManager: storageManager!)
+                        .transition(.asymmetric(
+                            insertion: .scale(scale: 0.8).combined(with: .opacity),
+                            removal: .scale(scale: 0.8).combined(with: .opacity)
+                        ))
+                }
+            }
+            .padding(.horizontal, 20)
+            .padding(.bottom, 120) // Extra padding for FAB
+        }
+        .refreshable {
+            await refreshDocuments()
+        }
+        .overlay {
+            if filteredDocuments.isEmpty {
+                enhancedEmptyStateView
+            }
+        }
+    }
+    
+    // MARK: - Enhanced Empty State View
+    private var enhancedEmptyStateView: some View {
+        VStack(spacing: 24) {
+            // Animated icon
+            ZStack {
+                Circle()
+                    .fill(Color.blue.opacity(0.1))
+                    .frame(width: 120, height: 120)
+                
+                Image(systemName: "doc.text")
+                    .font(.system(size: 50, weight: .light))
+                    .foregroundColor(.blue)
             }
             
-            VStack(alignment: .leading, spacing: 4) {
-                Text(document.name)
-                    .font(.headline)
-                    .lineLimit(1)
+            VStack(spacing: 12) {
+                Text("No Documents Found")
+                    .font(.title2)
+                    .fontWeight(.semibold)
+                    .foregroundColor(.primary)
                 
-                Text("\(document.pageCount) pages • \(storageManager.getFormattedFileSize(document.fileSize))")
-                    .font(.caption)
+                Text("Start by scanning documents, importing PDFs, or converting photos to PDFs")
+                    .font(.body)
                     .foregroundColor(.secondary)
-                
-                Text("Modified: \(document.modifiedDate.formatted(date: .abbreviated, time: .shortened))")
-                    .font(.caption2)
-                    .foregroundColor(.secondary)
-                
-                if !document.tags.isEmpty {
-                    ScrollView(.horizontal, showsIndicators: false) {
-                        HStack {
-                            ForEach(document.tags, id: \.self) { tag in
-                                Text(tag)
-                                    .font(.caption2)
-                                    .padding(.horizontal, 6)
-                                    .padding(.vertical, 2)
-                                    .background(Color.blue.opacity(0.2))
-                                    .cornerRadius(4)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 40)
+                    .lineLimit(3)
+            }
+            
+            Button(action: {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                    showingImportMenu = true
+                }
+            }) {
+                HStack(spacing: 8) {
+                    Image(systemName: "plus")
+                        .font(.system(size: 16, weight: .semibold))
+                    Text("Add First Document")
+                        .font(.subheadline)
+                        .fontWeight(.semibold)
+                }
+                .foregroundColor(.white)
+                .padding(.horizontal, 24)
+                .padding(.vertical, 12)
+                .background(
+                    LinearGradient(
+                        colors: [.blue, .purple],
+                        startPoint: .leading,
+                        endPoint: .trailing
+                    )
+                )
+                .cornerRadius(25)
+                .shadow(color: .blue.opacity(0.3), radius: 8, x: 0, y: 4)
+            }
+        }
+        .animation(.easeInOut(duration: 0.6), value: filteredDocuments.isEmpty)
+    }
+    
+    // MARK: - Enhanced Floating Action Button
+    private var floatingActionButton: some View {
+        VStack {
+            Spacer()
+            
+            HStack {
+                Spacer()
+
+                VStack(spacing: 12) {
+                    // Quick action buttons (shown when expanded)
+                    if fabExpanded {
+                        Group {
+                            quickActionButton(
+                                icon: "doc.viewfinder",
+                                text: "Scan",
+                                color: .green,
+                                action: {
+                                    showingDocumentScanner = true
+                                    withAnimation(.spring()) { fabExpanded = false }
+                                }
+                            )
+                            
+                            quickActionButton(
+                                icon: "photo.on.rectangle",
+                                text: "Photos",
+                                color: .orange,
+                                action: {
+                                    showingImagePicker = true
+                                    withAnimation(.spring()) { fabExpanded = false }
+                                }
+                            )
+                            
+                            quickActionButton(
+                                icon: "folder",
+                                text: "Files",
+                                color: .blue,
+                                action: {
+                                    showingFilePicker = true
+                                    withAnimation(.spring()) { fabExpanded = false }
+                                }
+                            )
+                        }
+                        .transition(.asymmetric(
+                            insertion: .scale(scale: 0.8).combined(with: .opacity),
+                            removal: .scale(scale: 0.8).combined(with: .opacity)
+                        ))
+                    }
+                    
+                    // Main FAB
+                    Button(action: {
+                        withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                            if fabExpanded {
+                                fabExpanded = false
+                            } else {
+                                fabExpanded = true
                             }
+                        }
+                    }) {
+                        ZStack {
+                            // Background with gradient
+                            Circle()
+                                .fill(
+                                    LinearGradient(
+                                        colors: [.blue, .purple],
+                                        startPoint: .topLeading,
+                                        endPoint: .bottomTrailing
+                                    )
+                                )
+                                .frame(width: 60, height: 60)
+                                .shadow(color: .blue.opacity(0.3), radius: 12, x: 0, y: 6)
+                            
+                            // Icon
+                            Image(systemName: fabExpanded ? "xmark" : "plus")
+                                .font(.system(size: 24, weight: .semibold))
+                                .foregroundColor(.white)
+                                .rotationEffect(.degrees(fabExpanded ? 45 : 0))
+                        }
+                    }
+                    .scaleEffect(fabExpanded ? 1.1 : 1.0)
+                }
+                
+            }
+            .padding(.trailing, 24)
+            .padding(.bottom, 34)
+        }
+        .animation(.spring(response: 0.4, dampingFraction: 0.8), value: fabExpanded)
+        .confirmationDialog("Add Document", isPresented: $showingImportMenu) {
+            Button("Scan with Camera") {
+                showingDocumentScanner = true
+            }
+            
+            Button("Choose from Photos") {
+                showingImagePicker = true
+            }
+            
+            Button("Import PDF Files") {
+                showingFilePicker = true
+            }
+            
+            Button("Cancel", role: .cancel) { }
+        }
+        .onChange(of: showingImportMenu) { _, newValue in
+            if !newValue {
+                withAnimation(.spring()) {
+                    fabExpanded = false
+                }
+            }
+        }
+    }
+    
+    // MARK: - Quick Action Button
+    private func quickActionButton(icon: String, text: String, color: Color, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack(spacing: 12) {
+                Image(systemName: icon)
+                    .font(.system(size: 16, weight: .medium))
+                    .foregroundColor(color)
+                    .frame(width: 24, height: 24)
+                
+                Text(text)
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+                    .foregroundColor(.primary)
+                
+                Spacer()
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 12)
+            .background(
+                RoundedRectangle(cornerRadius: 16)
+                    .fill(Color(.systemBackground))
+                    .shadow(color: .black.opacity(0.08), radius: 4, x: 0, y: 2)
+            )
+            .frame(width: 140)
+        }
+    }
+    
+    // MARK: - Helper Methods
+    private func setupStorageManager() {
+        if storageManager == nil {
+            storageManager = PDFStorageManager(modelContext: modelContext)
+        }
+    }
+    
+    private func refreshDocuments() async {
+        await MainActor.run {
+            withAnimation(.easeInOut(duration: 0.3)) {
+                storageManager?.fetchDocuments()
+            }
+        }
+    }
+    
+    private func processScannedImages(_ images: [UIImage]) {
+        guard !images.isEmpty else { return }
+        
+        isProcessing = true
+        
+        Task {
+            do {
+                let documentName = "Scanned Document \(Date().formatted(date: .abbreviated, time: .shortened))"
+                _ = try await MainActor.run {
+                    try storageManager?.createPDFFromImages(images, name: documentName)
+                }
+                
+                await MainActor.run {
+                    isProcessing = false
+                    withAnimation(.spring(response: 0.5, dampingFraction: 0.8)) {
+                        // Document will automatically appear in the grid
+                    }
+                }
+            } catch {
+                await MainActor.run {
+                    isProcessing = false
+                    storageManager?.errorMessage = "Failed to process images: \(error.localizedDescription)"
+                }
+            }
+        }
+    }
+    
+    private func handleFileImport(result: Result<[URL], Error>) {
+        switch result {
+        case .success(let urls):
+            isProcessing = true
+            
+            Task {
+                for url in urls {
+                    do {
+                        let data = try Data(contentsOf: url)
+                        let name = url.deletingPathExtension().lastPathComponent
+                        
+                        await MainActor.run {
+                            try? storageManager?.savePDF(from: data, name: name)
+                        }
+                    } catch {
+                        await MainActor.run {
+                            storageManager?.errorMessage = "Failed to import \(url.lastPathComponent): \(error.localizedDescription)"
                         }
                     }
                 }
+                
+                await MainActor.run {
+                    isProcessing = false
+                }
             }
             
-            Spacer()
-            
-            Button(action: { toggleFavorite() }) {
-                Image(systemName: document.isFavorite ? "heart.fill" : "heart")
-                    .foregroundColor(document.isFavorite ? .red : .gray)
-            }
-            .buttonStyle(BorderlessButtonStyle())
+        case .failure(let error):
+            storageManager?.errorMessage = "Import failed: \(error.localizedDescription)"
         }
-        .padding(.vertical, 4)
-    }
-    
-    private func toggleFavorite() {
-        document.isFavorite.toggle()
-        try? storageManager.updateDocument(document)
     }
 }
