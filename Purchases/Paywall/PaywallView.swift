@@ -237,7 +237,7 @@ struct PaywallView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) private var colorScheme
     @EnvironmentObject private var purchaseManager: PurchaseManager
-    @State private var selectedSubscriptionIndex: Int = 0 // Default to annual (best value)
+    @State private var selectedSubscriptionIndex: Int = 1 // Default to annual (best value)
     @State private var showTrialOption: Bool = true
     @State private var isRestoring = false
     @State private var showPrivacyPolicy = false

@@ -16,6 +16,9 @@ struct SettingsView: View {
     @Environment(\.modelContext) private var modelContext
     @State private var storageManager: PDFStorageManager?
     
+    @EnvironmentObject private var purchaseManager: PurchaseManager
+
+    
     // User Preferences
     @AppStorage("defaultScanQuality") private var defaultScanQuality: ScanQuality = .high
     @AppStorage("autoSaveLocation") private var autoSaveLocation: SaveLocation = .app
@@ -30,6 +33,7 @@ struct SettingsView: View {
     @AppStorage("enableNotifications") private var enableNotifications = true
     
     // State variables
+    @State private var showingPaywall = false
     @State private var showingStorageAlert = false
     @State private var showingDeleteAllAlert = false
     @State private var showingExportOptions = false
@@ -43,6 +47,11 @@ struct SettingsView: View {
             List {
                 // MARK: - App Preferences Section
                 Section {
+                    // Premium Paywall Section (Top Priority)
+                    if purchaseManager.subscriptionStatus == .notSubscribed {
+                        premiumPaywallCard
+                    }
+                    
                     // Scan Quality
                     Picker("Default Scan Quality", selection: $defaultScanQuality) {
                         ForEach(ScanQuality.allCases, id: \.self) { quality in
@@ -395,6 +404,68 @@ struct SettingsView: View {
             if isExporting {
                 ExportProgressView(progress: exportProgress)
             }
+        }
+        .fullScreenCover(isPresented: $showingPaywall) {
+            PaywallView()
+                .withPurchaseManager()
+
+        }
+    }
+    
+    
+    // MARK: - Premium Paywall Card (Top Section)
+    private var premiumPaywallCard: some View {
+        VStack(spacing: 0) {
+            // Compact Header with Gradient
+            HStack(spacing: 12) {
+                // Crown icon with subtle glow
+                ZStack {
+                    Circle()
+                        .fill(.white.opacity(0.2))
+                        .frame(width: 32, height: 32)
+                    
+                    Image(systemName: "crown.fill")
+                        .foregroundStyle(.white)
+                        .font(.system(size: 14, weight: .semibold))
+                }
+                
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Upgrade to Pro")
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundStyle(.white)
+                    
+                    Text("Unlock all features")
+                        .font(.system(size: 13))
+                        .foregroundStyle(.white.opacity(0.85))
+                }
+                
+                Spacer()
+                
+                // CTA Button - Primary action
+                Button(action: { showingPaywall = true }) {
+                    Text("Try Free")
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundStyle(.purple)
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 8)
+                        .background(.white)
+                        .clipShape(Capsule())
+                }
+                .buttonStyle(.plain)
+            }
+            .padding(.horizontal, 20)
+            .padding(.vertical, 16)
+            .background(
+                LinearGradient(
+                    colors: [
+                        Color(red: 0.4, green: 0.2, blue: 0.8),
+                        Color(red: 0.2, green: 0.4, blue: 0.9)
+                    ],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+            )
+        
         }
     }
     

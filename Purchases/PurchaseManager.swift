@@ -16,9 +16,9 @@ import StoreKit
 
 // MARK: - Product Identifiers
 enum SubscriptionType: String, CaseIterable {
-    case weeklyNoTrial = "com.nikulinakateapp.invoicemaker.subscription.weekly.notrial"
-    case weeklyWithTrial = "com.nikulinakateapp.invoicemaker.subscription.weekly.trial"
-    case yearlyNoTrial = "com.nikulinakateapp.invoicemaker.subscription.yearly"
+    case weeklyNoTrial = "com.nikulinakateapp.pdfeditor.subscription.weekly.notrial"
+    case weeklyWithTrial = "com.nikulinakateapp.pdfeditor.subscription.weekly.trial"
+    case yearlyNoTrial = "com.nikulinakateapp.pdfeditor.subscription.yearly"
     
     var displayName: String {
         switch self {
@@ -125,7 +125,7 @@ class PurchaseManager: ObservableObject {
         print("=== STOREKIT DEBUG ===")
         
         // Check if StoreKit is available
-        print("StoreKit available: \(SKPaymentQueue.canMakePayments())")
+        print("StoreKit available: \(AppStore.canMakePayments)")
         
         // Check network connectivity
         do {

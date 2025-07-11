@@ -138,6 +138,7 @@ struct ContentView: View {
         }
         .sheet(isPresented: $showingSettings) {
             SettingsView()
+                .withPurchaseManager()
         }
     }
     
@@ -506,7 +507,7 @@ struct ContentView: View {
                         let name = url.deletingPathExtension().lastPathComponent
                         
                         await MainActor.run {
-                            try? storageManager?.savePDF(from: data, name: name)
+                           _ =  try? storageManager?.savePDF(from: data, name: name)
                         }
                     } catch {
                         await MainActor.run {
