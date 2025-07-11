@@ -31,6 +31,31 @@
 			path = UI;
 			sourceTree = "<group>";
 		};
+		CEADA8D22E20E6F300592684 /* Privacy */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = Privacy;
+			sourceTree = "<group>";
+		};
+		CEADA8D52E20E70B00592684 /* Constants */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = Constants;
+			sourceTree = "<group>";
+		};
+		CEADA8DD2E20E72700592684 /* Purchases */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = Purchases;
+			sourceTree = "<group>";
+		};
+		CEADA8E52E20E73500592684 /* Onboarding */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = Onboarding;
+			sourceTree = "<group>";
+		};
+		CEADA8EE2E20E77C00592684 /* Common */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = Common;
+			sourceTree = "<group>";
+		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -47,6 +72,11 @@
 		097F2F762E18478400078C43 = {
 			isa = PBXGroup;
 			children = (
+				CEADA8EE2E20E77C00592684 /* Common */,
+				CEADA8E52E20E73500592684 /* Onboarding */,
+				CEADA8DD2E20E72700592684 /* Purchases */,
+				CEADA8D52E20E70B00592684 /* Constants */,
+				CEADA8D22E20E6F300592684 /* Privacy */,
 				CE812A192E1BB6EB00DFFFEA /* UI */,
 				CE812A182E1BB6E200DFFFEA /* Services */,
 				CE812A162E1BB6D400DFFFEA /* Models */,
@@ -83,6 +113,11 @@
 				CE812A162E1BB6D400DFFFEA /* Models */,
 				CE812A182E1BB6E200DFFFEA /* Services */,
 				CE812A192E1BB6EB00DFFFEA /* UI */,
+				CEADA8D22E20E6F300592684 /* Privacy */,
+				CEADA8D52E20E70B00592684 /* Constants */,
+				CEADA8DD2E20E72700592684 /* Purchases */,
+				CEADA8E52E20E73500592684 /* Onboarding */,
+				CEADA8EE2E20E77C00592684 /* Common */,
 			);
 			name = "Scanner PDF";
 			packageProductDependencies = (

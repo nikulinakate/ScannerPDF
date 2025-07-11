@@ -1,5 +1,8 @@
 import SwiftUI
 import QuickLook
+import PDFKit
+import Vision
+import VisionKit
 
 // MARK: - Main Document Preview View
 struct DocumentPreviewView: View {
@@ -9,7 +12,13 @@ struct DocumentPreviewView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var showingQLPreview = false
     @State private var showingShareSheet = false
+    @State private var showingPDFConverter = false
+    @State private var showingOCRSheet = false
     @State private var documentThumbnail: UIImage?
+    @State private var pdfDocument: PDFDocument?
+    @State private var extractedText: String = ""
+    @State private var isProcessingOCR = false
+    @State private var ocrError: String?
     
     var body: some View {
         NavigationStack {
@@ -44,6 +53,22 @@ struct DocumentPreviewView: View {
                 
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Menu {
+                        // Convert button (only for PDFs)
+                        if isPDFDocument {
+                            Button(action: { showingPDFConverter = true }) {
+                                Label("Convert PDF", systemImage: "arrow.triangle.2.circlepath")
+                            }
+                            
+                            Divider()
+                        }
+                        
+                        // OCR Extract Text button
+                        Button(action: { performOCR() }) {
+                            Label("Extract Text (OCR)", systemImage: "doc.text.viewfinder")
+                        }
+                        
+                        Divider()
+                        
                         Button(action: printDocument) {
                             Label("Print", systemImage: "printer")
                         }
@@ -66,10 +91,26 @@ struct DocumentPreviewView: View {
             QLPreviewWrapper(url: url, isPresented: $showingQLPreview)
         }
         .sheet(isPresented: $showingShareSheet) {
-            ShareSheet(url: url)
+            ShareSheet(items: [url])
+        }
+        .sheet(isPresented: $showingOCRSheet) {
+            OCRResultSheet(
+                extractedText: extractedText,
+                documentName: documentName,
+                isPresented: $showingOCRSheet
+            )
+        }
+        .fullScreenCover(isPresented: $showingPDFConverter) {
+            if isPDFDocument {
+                EnhancedPDFConvertView(
+                    document: pdfDocument,
+                    onDismiss: { showingPDFConverter = false }
+                )
+            }
         }
         .onAppear {
             generateThumbnail()
+            loadPDFDocument()
         }
     }
     
@@ -139,8 +180,51 @@ struct DocumentPreviewView: View {
                 )
             }
             
+            // OCR Extract Text button
+            Button(action: { performOCR() }) {
+                HStack(spacing: 12) {
+                    if isProcessingOCR {
+                        ProgressView()
+                            .scaleEffect(0.8)
+                            .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                    } else {
+                        Image(systemName: "doc.text.viewfinder")
+                            .font(.system(size: 18, weight: .medium))
+                    }
+                    Text(isProcessingOCR ? "Extracting Text..." : "Extract Text (OCR)")
+                        .font(.system(size: 17, weight: .medium))
+                }
+                .foregroundColor(.white)
+                .frame(maxWidth: .infinity)
+                .frame(height: 52)
+                .background(
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(Color.green)
+                )
+            }
+            .disabled(isProcessingOCR)
+            
             // Secondary actions
             HStack(spacing: 12) {
+                // Convert button (only for PDFs)
+                if isPDFDocument {
+                    Button(action: { showingPDFConverter = true }) {
+                        HStack(spacing: 8) {
+                            Image(systemName: "arrow.triangle.2.circlepath")
+                                .font(.system(size: 16, weight: .medium))
+                            Text("Convert")
+                                .font(.system(size: 16, weight: .medium))
+                        }
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 44)
+                        .background(
+                            RoundedRectangle(cornerRadius: 10)
+                                .fill(Color.orange)
+                        )
+                    }
+                }
+                
                 Button(action: { showingShareSheet = true }) {
                     HStack(spacing: 8) {
                         Image(systemName: "square.and.arrow.up")
@@ -226,6 +310,18 @@ struct DocumentPreviewView: View {
                     }
                     
                     Spacer()
+                    
+                    // Show page count for PDFs
+                    if isPDFDocument, let document = pdfDocument {
+                        VStack(alignment: .trailing, spacing: 4) {
+                            Text("Pages")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                            Text("\(document.pageCount)")
+                                .font(.footnote)
+                                .fontWeight(.medium)
+                        }
+                    }
                 }
             }
         }
@@ -237,7 +333,161 @@ struct DocumentPreviewView: View {
         )
     }
     
+    // MARK: - Computed Properties
+    
+    private var isPDFDocument: Bool {
+        url.pathExtension.lowercased() == "pdf"
+    }
+    
+    private var isImageDocument: Bool {
+        let imageExtensions = ["jpg", "jpeg", "png", "gif", "bmp", "tiff", "heic"]
+        return imageExtensions.contains(url.pathExtension.lowercased())
+    }
+    
+    // MARK: - OCR Functions
+    
+    private func performOCR() {
+        isProcessingOCR = true
+        ocrError = nil
+        extractedText = ""
+        
+        Task {
+            do {
+                if isPDFDocument {
+                    await extractTextFromPDF()
+                } else if isImageDocument {
+                    await extractTextFromImage()
+                } else {
+                    await extractTextFromGenericDocument()
+                }
+            }
+            
+            DispatchQueue.main.async {
+                isProcessingOCR = false
+                if !extractedText.isEmpty {
+                    showingOCRSheet = true
+                }
+            }
+        }
+    }
+    
+    private func extractTextFromPDF() async {
+        guard let pdfDocument = pdfDocument else { return }
+        
+        var allText = ""
+        
+        // First try to extract text directly from PDF
+        for pageIndex in 0..<pdfDocument.pageCount {
+            if let page = pdfDocument.page(at: pageIndex) {
+                if let pageText = page.string {
+                    allText += pageText + "\n\n"
+                }
+            }
+        }
+        
+        // If no text found or very little text, perform OCR on each page
+        if allText.trimmingCharacters(in: .whitespacesAndNewlines).count < 50 {
+            allText = ""
+            
+            for pageIndex in 0..<pdfDocument.pageCount {
+                if let page = pdfDocument.page(at: pageIndex) {
+                    let pageRect = page.bounds(for: .mediaBox)
+                    let renderer = UIGraphicsImageRenderer(size: pageRect.size)
+                    
+                    let pageImage = renderer.image { ctx in
+                        ctx.cgContext.translateBy(x: 0, y: pageRect.size.height)
+                        ctx.cgContext.scaleBy(x: 1, y: -1)
+                        ctx.cgContext.drawPDFPage(page.pageRef!)
+                    }
+                    
+                    let pageText = await performVisionOCR(on: pageImage)
+                    allText += "Page \(pageIndex + 1):\n" + pageText + "\n\n"
+                }
+            }
+        }
+        
+        DispatchQueue.main.async {
+            extractedText = allText.trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+    }
+    
+    private func extractTextFromImage() async {
+        guard let image = UIImage(contentsOfFile: url.path) else {
+            DispatchQueue.main.async {
+                ocrError = "Failed to load image"
+            }
+            return
+        }
+        
+        let text = await performVisionOCR(on: image)
+        DispatchQueue.main.async {
+            extractedText = text
+        }
+    }
+    
+    private func extractTextFromGenericDocument() async {
+        // For other document types, try to create a preview image and perform OCR
+        if let thumbnail = documentThumbnail {
+            let text = await performVisionOCR(on: thumbnail)
+            DispatchQueue.main.async {
+                extractedText = text
+            }
+        } else {
+            DispatchQueue.main.async {
+                ocrError = "OCR not supported for this document type"
+            }
+        }
+    }
+    
+    private func performVisionOCR(on image: UIImage) async -> String {
+        return await withCheckedContinuation { continuation in
+            guard let cgImage = image.cgImage else {
+                continuation.resume(returning: "")
+                return
+            }
+            
+            let request = VNRecognizeTextRequest { request, error in
+                if let error = error {
+                    print("OCR Error: \(error)")
+                    continuation.resume(returning: "")
+                    return
+                }
+                
+                guard let observations = request.results as? [VNRecognizedTextObservation] else {
+                    continuation.resume(returning: "")
+                    return
+                }
+                
+                let recognizedText = observations.compactMap { observation in
+                    observation.topCandidates(1).first?.string
+                }.joined(separator: "\n")
+                
+                continuation.resume(returning: recognizedText)
+            }
+            
+            // Configure for better accuracy
+            request.recognitionLevel = .accurate
+            request.usesLanguageCorrection = true
+            
+            let handler = VNImageRequestHandler(cgImage: cgImage, options: [:])
+            
+            do {
+                try handler.perform([request])
+            } catch {
+                print("OCR Handler Error: \(error)")
+                continuation.resume(returning: "")
+            }
+        }
+    }
+    
     // MARK: - Helper Functions
+    
+    private func loadPDFDocument() {
+        if isPDFDocument {
+            pdfDocument = PDFDocument(url: url)
+        }
+    }
+    
     private func getFileSize() -> String? {
         do {
             let attributes = try FileManager.default.attributesOfItem(atPath: url.path)
@@ -281,28 +531,33 @@ struct DocumentPreviewView: View {
             return "rectangle.on.rectangle"
         case "txt":
             return "doc.plaintext"
+        case "jpg", "jpeg", "png", "gif", "bmp", "tiff", "heic":
+            return "photo"
         default:
             return "doc"
         }
     }
     
     private func generateThumbnail() {
-        guard let provider = CGDataProvider(url: url as CFURL) else { return }
-        
-        if url.pathExtension.lowercased() == "pdf" {
-            if let pdfDocument = CGPDFDocument(provider) {
-                if let page = pdfDocument.page(at: 1) {
-                    let pageRect = page.getBoxRect(.mediaBox)
-                    let renderer = UIGraphicsImageRenderer(size: pageRect.size)
-                    let image = renderer.image { ctx in
-                        ctx.cgContext.translateBy(x: 0, y: pageRect.size.height)
-                        ctx.cgContext.scaleBy(x: 1, y: -1)
-                        ctx.cgContext.drawPDFPage(page)
-                    }
-                    DispatchQueue.main.async {
-                        self.documentThumbnail = image
-                    }
-                }
+        if isPDFDocument {
+            guard let provider = CGDataProvider(url: url as CFURL),
+                  let pdfDocument = CGPDFDocument(provider),
+                  let page = pdfDocument.page(at: 1) else { return }
+            
+            let pageRect = page.getBoxRect(.mediaBox)
+            let renderer = UIGraphicsImageRenderer(size: pageRect.size)
+            let image = renderer.image { ctx in
+                ctx.cgContext.translateBy(x: 0, y: pageRect.size.height)
+                ctx.cgContext.scaleBy(x: 1, y: -1)
+                ctx.cgContext.drawPDFPage(page)
+            }
+            
+            DispatchQueue.main.async {
+                self.documentThumbnail = image
+            }
+        } else if isImageDocument {
+            DispatchQueue.main.async {
+                self.documentThumbnail = UIImage(contentsOfFile: url.path)
             }
         }
     }
@@ -322,6 +577,125 @@ struct DocumentPreviewView: View {
     }
 }
 
+// MARK: - OCR Result Sheet
+struct OCRResultSheet: View {
+    let extractedText: String
+    let documentName: String
+    @Binding var isPresented: Bool
+    @State private var showingShareSheet = false
+    
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 16) {
+                    // Header info
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Extracted Text")
+                            .font(.title2)
+                            .fontWeight(.bold)
+                        
+                        Text("From: \(documentName)")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                        
+                        Text("\(extractedText.count) characters")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                    
+                    Divider()
+                    
+                    // Extracted text
+                    if extractedText.isEmpty {
+                        VStack(spacing: 16) {
+                            Image(systemName: "doc.text.viewfinder")
+                                .font(.system(size: 48))
+                                .foregroundColor(.gray)
+                            
+                            Text("No text was found in this document")
+                                .font(.headline)
+                                .foregroundColor(.secondary)
+                            
+                            Text("The document may not contain readable text, or the text may be too unclear for OCR processing.")
+                                .font(.body)
+                                .foregroundColor(.secondary)
+                                .multilineTextAlignment(.center)
+                        }
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .padding(.top, 50)
+                    } else {
+                        Text(extractedText)
+                            .font(.system(.body, design: .monospaced))
+                            .textSelection(.enabled)
+                            .padding()
+                            .background(
+                                RoundedRectangle(cornerRadius: 8)
+                                    .fill(Color(.systemGray6))
+                            )
+                    }
+                    
+                    Spacer()
+                }
+                .padding()
+            }
+            .navigationTitle("OCR Results")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button("Done") {
+                        isPresented = false
+                    }
+                }
+                
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Menu {
+                        Button(action: { copyTextToClipboard() }) {
+                            Label("Copy Text", systemImage: "doc.on.doc")
+                        }
+                        
+                        Button(action: { showingShareSheet = true }) {
+                            Label("Share Text", systemImage: "square.and.arrow.up")
+                        }
+                        
+                        Button(action: { saveTextToFile() }) {
+                            Label("Save as Text File", systemImage: "doc.badge.plus")
+                        }
+                    } label: {
+                        Image(systemName: "ellipsis.circle")
+                    }
+                    .disabled(extractedText.isEmpty)
+                }
+            }
+        }
+        .sheet(isPresented: $showingShareSheet) {
+            ShareSheet(items: [extractedText])
+        }
+    }
+    
+    private func copyTextToClipboard() {
+        UIPasteboard.general.string = extractedText
+        // Could add a toast notification here
+    }
+    
+    private func saveTextToFile() {
+        let textFileName = "\(documentName)_extracted_text.txt"
+        let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent(textFileName)
+        
+        do {
+            try extractedText.write(to: tempURL, atomically: true, encoding: .utf8)
+            
+            let documentPicker = UIDocumentPickerViewController(forExporting: [tempURL])
+            
+            if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+               let window = windowScene.windows.first {
+                window.rootViewController?.present(documentPicker, animated: true)
+            }
+        } catch {
+            print("Error saving text file: \(error)")
+        }
+    }
+}
+
 // MARK: - Enhanced QLPreviewController Wrapper with Editing Mode
 struct QLPreviewWrapper: UIViewControllerRepresentable {
     let url: URL
@@ -331,14 +705,18 @@ struct QLPreviewWrapper: UIViewControllerRepresentable {
         let previewController = QLPreviewController()
         previewController.dataSource = context.coordinator
         previewController.delegate = context.coordinator
-        previewController.currentPreviewItemIndex = 0
         
-        // Enable editing mode
-        previewController.reloadData()
-        
-        // Add navigation controller to handle the editing flow properly
+        // Create navigation controller
         let navigationController = UINavigationController(rootViewController: previewController)
-        navigationController.navigationBar.tintColor = UIColor.systemBlue
+        
+        // Add Done button to navigation bar
+        let doneButton = UIBarButtonItem(
+            barButtonSystemItem: .done,
+            target: context.coordinator,
+            action: #selector(Coordinator.dismissPreview)
+        )
+        
+        previewController.navigationItem.rightBarButtonItem = doneButton
         
         return navigationController
     }
@@ -365,6 +743,10 @@ struct QLPreviewWrapper: UIViewControllerRepresentable {
         }
         
         func previewControllerWillDismiss(_ controller: QLPreviewController) {
+            parent.isPresented = false
+        }
+        
+        @objc func dismissPreview() {
             parent.isPresented = false
         }
         
@@ -401,39 +783,14 @@ struct QLPreviewWrapper: UIViewControllerRepresentable {
     }
 }
 
-// MARK: - Share Sheet
+// MARK: - Share Sheet Helper
 struct ShareSheet: UIViewControllerRepresentable {
-    let url: URL
+    let items: [Any]
     
     func makeUIViewController(context: Context) -> UIActivityViewController {
-        let controller = UIActivityViewController(activityItems: [url], applicationActivities: nil)
-        controller.excludedActivityTypes = [.saveToCameraRoll]
-        
+        let controller = UIActivityViewController(activityItems: items, applicationActivities: nil)
         return controller
     }
     
     func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
 }
-
-// MARK: - Usage Example
-/*
- Usage in your main view:
- 
- DocumentPreviewView(
-     url: yourDocumentURL,
-     documentName: "Sample Document.pdf"
- )
- 
- Key Changes for Editing Mode:
- 1. Wrapped QLPreviewController in UINavigationController for proper editing flow
- 2. Enhanced editingModeFor delegate method to check file types
- 3. Added didUpdateContentsOf and didSaveEditedCopyOf delegate methods
- 4. Improved file type checking for editing capabilities
- 5. Added proper navigation handling for editing workflow
- 
- Supported editing file types:
- - PDF (markup, annotations, signatures)
- - TXT (text editing)
- - RTF (rich text editing)
- - DOC/DOCX (if supported by system)
- */
