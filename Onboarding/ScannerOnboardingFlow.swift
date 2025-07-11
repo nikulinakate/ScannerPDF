@@ -512,12 +512,12 @@ struct ScannerUserTypeSelectionView: View {
                 }
                 
                 VStack(spacing: 12) {
-                    Text("Welcome to Scanner Pro")
-                        .font(.system(size: 32, weight: .bold, design: .rounded))
+                    Text("Welcome to PDF Scanner")
+                        .font(.system(size: 28, weight: .bold, design: .rounded))
                         .foregroundColor(ScannerTheme.adaptiveTextPrimary)
                     
-                    Text("How will you be using Scanner Pro?")
-                        .font(.system(size: 18, weight: .medium))
+                    Text("How will you be using PDF Scanner?")
+                        .font(.system(size: 16, weight: .medium))
                         .foregroundColor(ScannerTheme.adaptiveTextSecondary)
                         .multilineTextAlignment(.center)
                 }

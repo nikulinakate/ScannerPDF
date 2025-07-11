@@ -6,14 +6,36 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		098CB51B2E20FF4C00A35F25 /* FirebaseAnalytics in Frameworks */ = {isa = PBXBuildFile; productRef = 098CB51A2E20FF4C00A35F25 /* FirebaseAnalytics */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXFileReference section */
 		097F2F7F2E18478400078C43 /* Scanner PDF.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Scanner PDF.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		098CB51D2E20FFEB00A35F25 /* Exceptions for "Scanner PDF" folder in "Scanner PDF" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				"Scanner-PDF-Info.plist",
+			);
+			target = 097F2F7E2E18478400078C43 /* Scanner PDF */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		097F2F812E18478400078C43 /* Scanner PDF */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				098CB51D2E20FFEB00A35F25 /* Exceptions for "Scanner PDF" folder in "Scanner PDF" target */,
+			);
 			path = "Scanner PDF";
+			sourceTree = "<group>";
+		};
+		098CB5152E20FECB00A35F25 /* Resources */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = Resources;
 			sourceTree = "<group>";
 		};
 		CE812A162E1BB6D400DFFFEA /* Models */ = {
@@ -63,6 +85,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				098CB51B2E20FF4C00A35F25 /* FirebaseAnalytics in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -72,6 +95,7 @@
 		097F2F762E18478400078C43 = {
 			isa = PBXGroup;
 			children = (
+				098CB5152E20FECB00A35F25 /* Resources */,
 				CEADA8EE2E20E77C00592684 /* Common */,
 				CEADA8E52E20E73500592684 /* Onboarding */,
 				CEADA8DD2E20E72700592684 /* Purchases */,
@@ -81,6 +105,7 @@
 				CE812A182E1BB6E200DFFFEA /* Services */,
 				CE812A162E1BB6D400DFFFEA /* Models */,
 				097F2F812E18478400078C43 /* Scanner PDF */,
+				098CB5192E20FF4C00A35F25 /* Frameworks */,
 				097F2F802E18478400078C43 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -91,6 +116,13 @@
 				097F2F7F2E18478400078C43 /* Scanner PDF.app */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		098CB5192E20FF4C00A35F25 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			name = Frameworks;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -110,6 +142,7 @@
 			);
 			fileSystemSynchronizedGroups = (
 				097F2F812E18478400078C43 /* Scanner PDF */,
+				098CB5152E20FECB00A35F25 /* Resources */,
 				CE812A162E1BB6D400DFFFEA /* Models */,
 				CE812A182E1BB6E200DFFFEA /* Services */,
 				CE812A192E1BB6EB00DFFFEA /* UI */,
@@ -121,6 +154,7 @@
 			);
 			name = "Scanner PDF";
 			packageProductDependencies = (
+				098CB51A2E20FF4C00A35F25 /* FirebaseAnalytics */,
 			);
 			productName = "Scanner PDF";
 			productReference = 097F2F7F2E18478400078C43 /* Scanner PDF.app */;
@@ -150,6 +184,9 @@
 			);
 			mainGroup = 097F2F762E18478400078C43;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				098CB5182E20FF4000A35F25 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 097F2F802E18478400078C43 /* Products */;
 			projectDirPath = "";
@@ -306,27 +343,36 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 9;
+				DEVELOPMENT_TEAM = YV2J2X9FUB;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "Scanner-PDF-Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = "PDF Scanner";
+				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.business";
 				INFOPLIST_KEY_NSCameraUsageDescription = "This app needs camera access to scan documents and convert them to PDF format. Your photos are processed locally and never shared.";
 				INFOPLIST_KEY_NSDocumentsFolderUsageDescription = "This app needs access to your documents folder to import PDF files and save scanned documents.";
 				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "This app needs access to your photo library to import images and convert them to PDF documents. Your photos remain private and are processed locally on your device.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "com.Scanner-PDF";
+				OTHER_LDFLAGS = "-ObjC";
+				PRODUCT_BUNDLE_IDENTIFIER = com.nikulinakateapp.pdfeditor;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
+				TARGETED_DEVICE_FAMILY = 1;
 			};
 			name = Debug;
 		};
@@ -336,27 +382,36 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 9;
+				DEVELOPMENT_TEAM = YV2J2X9FUB;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "Scanner-PDF-Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = "PDF Scanner";
+				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.business";
 				INFOPLIST_KEY_NSCameraUsageDescription = "This app needs camera access to scan documents and convert them to PDF format. Your photos are processed locally and never shared.";
 				INFOPLIST_KEY_NSDocumentsFolderUsageDescription = "This app needs access to your documents folder to import PDF files and save scanned documents.";
 				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "This app needs access to your photo library to import images and convert them to PDF documents. Your photos remain private and are processed locally on your device.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "com.Scanner-PDF";
+				OTHER_LDFLAGS = "-ObjC";
+				PRODUCT_BUNDLE_IDENTIFIER = com.nikulinakateapp.pdfeditor;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
+				TARGETED_DEVICE_FAMILY = 1;
 			};
 			name = Release;
 		};
@@ -382,6 +437,25 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		098CB5182E20FF4000A35F25 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/firebase/firebase-ios-sdk";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 11.15.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		098CB51A2E20FF4C00A35F25 /* FirebaseAnalytics */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 098CB5182E20FF4000A35F25 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseAnalytics;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 097F2F772E18478400078C43 /* Project object */;
 }
