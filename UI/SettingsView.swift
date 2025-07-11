@@ -45,13 +45,13 @@ struct SettingsView: View {
     var body: some View {
         NavigationView {
             List {
+                // Premium Paywall Section (Top Priority)
+                if purchaseManager.subscriptionStatus == .notSubscribed {
+                    premiumPaywallCard
+                }
+                
                 // MARK: - App Preferences Section
                 Section {
-                    // Premium Paywall Section (Top Priority)
-                    if purchaseManager.subscriptionStatus == .notSubscribed {
-                        premiumPaywallCard
-                    }
-                    
                     // Scan Quality
                     Picker("Default Scan Quality", selection: $defaultScanQuality) {
                         ForEach(ScanQuality.allCases, id: \.self) { quality in
@@ -412,61 +412,190 @@ struct SettingsView: View {
         }
     }
     
-    
-    // MARK: - Premium Paywall Card (Top Section)
+    // **MARK: - Premium Paywall Card (Enhanced)**
     private var premiumPaywallCard: some View {
         VStack(spacing: 0) {
-            // Compact Header with Gradient
-            HStack(spacing: 12) {
-                // Crown icon with subtle glow
+            // Enhanced Header with improved visual hierarchy
+            HStack(spacing: 14) {
+                // Crown icon with enhanced glow and animation
                 ZStack {
                     Circle()
-                        .fill(.white.opacity(0.2))
-                        .frame(width: 32, height: 32)
+                        .fill(.white.opacity(0.25))
+                        .frame(width: 36, height: 36)
+                        .shadow(color: .white.opacity(0.3), radius: 8, x: 0, y: 2)
                     
                     Image(systemName: "crown.fill")
                         .foregroundStyle(.white)
-                        .font(.system(size: 14, weight: .semibold))
+                        .font(.system(size: 16, weight: .semibold))
+                        .scaleEffect(1.1)
+                }
+                .accessibility(hidden: true) // Decorative element
+                
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("Upgrade to Pro")
+                        .font(.system(size: 17, weight: .semibold, design: .rounded))
+                        .foregroundStyle(.white)
+                        .accessibility(addTraits: .isHeader)
+                    
+                    Text("Unlimited scans & advanced features")
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundStyle(.white.opacity(0.9))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.8)
                 }
                 
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Upgrade to Pro")
-                        .font(.system(size: 16, weight: .semibold))
+                Spacer(minLength: 8)
+                
+                // Enhanced CTA Button with better visual feedback
+                Button(action: {
+                    // Add haptic feedback
+                    let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
+                    impactFeedback.impactOccurred()
+                    showingPaywall = true
+                }) {
+                    HStack(spacing: 6) {
+                        Text("Try Free")
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundStyle(.purple)
+                        
+                        Image(systemName: "arrow.right.circle.fill")
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundStyle(.purple.opacity(0.8))
+                    }
+                    .padding(.horizontal, 18)
+                    .padding(.vertical, 10)
+                    .background(.white)
+                    .clipShape(Capsule())
+                    .shadow(color: .black.opacity(0.1), radius: 2, x: 0, y: 1)
+                }
+                .buttonStyle(.plain)
+                .scaleEffect(buttonPressed ? 0.95 : 1.0)
+                .animation(.easeInOut(duration: 0.1), value: buttonPressed)
+                .onLongPressGesture(minimumDuration: 0, maximumDistance: .infinity, pressing: { pressing in
+                    buttonPressed = pressing
+                }, perform: {})
+                .accessibility(label: Text("Try Pro version free"))
+                .accessibility(hint: Text("Opens subscription options"))
+            }
+            .padding(.horizontal, 20)
+            .padding(.vertical, 18)
+            .background(
+                // Enhanced gradient with subtle animation
+                LinearGradient(
+                    colors: [
+                        Color(red: 0.42, green: 0.25, blue: 0.82), // Deeper purple
+                        Color(red: 0.25, green: 0.42, blue: 0.92), // Brighter blue
+                        Color(red: 0.18, green: 0.35, blue: 0.88)  // Deeper blue
+                    ],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+                .overlay(
+                    // Subtle shine effect
+                    LinearGradient(
+                        colors: [
+                            .white.opacity(0.1),
+                            .clear,
+                            .white.opacity(0.05)
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+            )
+            .clipShape(RoundedRectangle(cornerRadius: 16))
+            .shadow(color: .purple.opacity(0.3), radius: 12, x: 0, y: 4)
+            .shadow(color: .black.opacity(0.08), radius: 1, x: 0, y: 1)
+            
+            // Optional: Feature highlights strip
+            featureHighlightsStrip
+        }
+        .animation(.easeInOut(duration: 0.3), value: showingPaywall)
+    }
+
+    // **MARK: - Feature Highlights Strip (Optional)**
+    private var featureHighlightsStrip: some View {
+        HStack(spacing: 16) {
+            ForEach(premiumFeatures) { feature in
+                HStack(spacing: 4) {
+                    Image(systemName: feature.icon)
+                        .font(.system(size: 7, weight: .medium))
+                        .foregroundStyle(.secondary)
+                    
+                    Text(feature.title)
+                        .font(.system(size: 8, weight: .medium))
+                        .foregroundStyle(.secondary)
+                }
+            }
+        }
+        .padding(.horizontal, 20)
+        .padding(.vertical, 12)
+        .background(.quaternary)
+        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .padding(.horizontal, 4)
+        .padding(.top, 8)
+    }
+
+    // **MARK: - Supporting Properties**
+    @State private var buttonPressed = false
+
+    // Create a proper struct for features
+    private struct PremiumFeature: Identifiable, Hashable {
+        let id = UUID()
+        let icon: String
+        let title: String
+    }
+
+    private let premiumFeatures = [
+        PremiumFeature(icon: "doc.text.magnifyingglass", title: "OCR"),
+        PremiumFeature(icon: "icloud.and.arrow.up", title: "Cloud Sync"),
+        PremiumFeature(icon: "folder.badge.plus", title: "Folders"),
+        PremiumFeature(icon: "rectangle.compress.vertical", title: "Compress")
+    ]
+
+    // **MARK: - Alternative Compact Version**
+    private var compactPremiumPaywallCard: some View {
+        Button(action: { showingPaywall = true }) {
+            HStack(spacing: 12) {
+                Image(systemName: "crown.fill")
+                    .foregroundStyle(.white)
+                    .font(.system(size: 14, weight: .semibold))
+                    .frame(width: 28, height: 28)
+                    .background(.white.opacity(0.2))
+                    .clipShape(Circle())
+                
+                VStack(alignment: .leading, spacing: 1) {
+                    Text("Pro Features")
+                        .font(.system(size: 15, weight: .semibold))
                         .foregroundStyle(.white)
                     
-                    Text("Unlock all features")
-                        .font(.system(size: 13))
+                    Text("Unlimited scans & more")
+                        .font(.system(size: 12))
                         .foregroundStyle(.white.opacity(0.85))
                 }
                 
                 Spacer()
                 
-                // CTA Button - Primary action
-                Button(action: { showingPaywall = true }) {
-                    Text("Try Free")
-                        .font(.system(size: 13, weight: .medium))
-                        .foregroundStyle(.purple)
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 8)
-                        .background(.white)
-                        .clipShape(Capsule())
-                }
-                .buttonStyle(.plain)
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(.white.opacity(0.8))
             }
-            .padding(.horizontal, 20)
-            .padding(.vertical, 16)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 12)
             .background(
                 LinearGradient(
                     colors: [
                         Color(red: 0.4, green: 0.2, blue: 0.8),
                         Color(red: 0.2, green: 0.4, blue: 0.9)
                     ],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
+                    startPoint: .leading,
+                    endPoint: .trailing
                 )
             )
-        
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+            .shadow(color: .purple.opacity(0.3), radius: 8, x: 0, y: 3)
         }
+        .buttonStyle(.plain)
     }
     
     // MARK: - Helper Methods
